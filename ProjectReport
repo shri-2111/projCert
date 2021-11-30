@@ -1,0 +1,145 @@
+DEVOPS FINAL PROJECT REPORT
+⦁	Subject - Deployment of the project is PHP application we will handling Test Server machine to completely from the Master.
+⦁	I done this project with CentOS machine.
+⦁	With This Subject ill be created MasterMachin and  TestServerMachine with the keypair Project via usnig AWS Console. 
+⦁	In Master Machine i installed : Git , Java.1.8.0 , Docker , Jenkins , Ansible
+⦁	In Test Server Machin: Via Using Ansible I Wrote the Configurations for TestingMachine like to run my php code , and get out put from TestServer
+⦁	For deploying the application i write dockerfile code and via using jenkins i pull the docker image and get output of project on Testserver machine
+
+
+1] Git :    using for maintain sourcecode
+	          https://github.com/shri-2111/projCert
+            This is the url where i maintain the code  
+
+2] Jenkins: For make master and testserver connection with creating of node 
+            also ill be using for defining docekr and selenium jar file code to check 	       	           
+            the status via the code is build sucessfully 
+
+3] Docker : using for deploying the project 
+            https://hub.docker.com/search?q=devopsedu%2Fwebapp&type=image
+            with this using link i pull the image by using dockerfile in my source path 
+
+To pull the dockerImage from dockerhub i wrote following code:: 
+
+
+FROM devopsedu/webapp
+
+ADD website /var/www/html
+
+RUN rm /var/www/html/index.html
+
+CMD apachectl -D FOREGROUND
+
+4] Ansible : Here i define the configuration yml code for TestServer .
+             the written configuration code for slave i us the ssh connection between them 
+             Here i write the configuration code for testserver machine with  playbook.yml file
+             
+             
+- hosts: webserver
+  become: true
+  become_user: root
+  tasks:
+     - name: Install git
+       yum: name=git state=present
+
+     - name: Run Update
+       yum: update_cache=true
+
+     - name: Install Java-1.8.0
+       yum: name=java-1.8.0-openjdk state=present
+
+     - name: Download Chrome Browser
+       command: wget https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm
+
+     - name: Install Chrome Browser
+       command : sudo yum install google-chrome-stable_current_x86_64.rpm -y
+
+     - name: Run update
+       yum: update_cache=yes
+
+     - name: download chromedriver
+       command: wget https://chromedriver.storage.googleapis.com/96.0.4664.45/chromedriver_linux64.zip
+
+     - name: install unzip
+       command: yum install unzip
+
+     - name: unzip chromedriver
+       command: unzip chromedriver_linux64.zip
+
+For installing docker from master to testserver i write the below code
+---
+- name: "AWS - Install docker"
+  hosts: all
+  become: yes
+  tasks:
+    - name: Update all packages
+      yum:
+        name: '*'
+        state: latest
+        update_only: yes
+
+    - name: Ensure a list of yum packages are installed
+      yum:
+        name: "{{ packages }}"
+        state: latest
+        update_cache: yes
+      vars:
+        packages:
+        - python-pip
+        - yum-utils
+        - device-mapper-persistent-data
+        - lvm2
+        - amazon-linux-extras
+
+    - name: Add extras repository
+      shell: yum-config-manager --enable extras
+
+    - name: Install docker-ce (centos) via amazon-linux-extras packages
+      shell: "amazon-linux-extras install docker=18.06.1 -y"
+
+    - name: Enable Docker CE service at startup
+      service:
+        name: docker
+        state: started
+        enabled: yes
+        
+5] Selenium : this tool i used to test the code make easy to test the project output.
+ 		          for testing code i installed eclips and java on my desktop 
+
+Wrote the following java code with creation of new project in eclips
+
+import static org.testng.Assert.assertEquals;
+import java.util.concurrent.TimeUnit;
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.testng.annotations.Test;
+import org.openqa.selenium.chrome.ChromeOptions;
+
+public class App {
+
+@Test
+public static void main(String[] args) {
+
+System.setProperty("webdriver.chrome.driver", "/home/ec2-user/chromedriver");
+ChromeOptions chromeOptions = new ChromeOptions();
+chromeOptions.addArguments("--headless");
+chromeOptions.addArguments("--no-sandbox");
+
+chromeOptions.setExperimentalOption("useAutomationExtension", false);
+
+WebDriver driver = new ChromeDriver(chromeOptions);
+
+driver.get("http://54.87.200.156:8081");
+
+driver.manage().timeouts().implicitlyWait(3, TimeUnit.SECONDS);
+driver.findElement(By.id("About Us")).click();
+
+String test = driver.findElement(By.id("PID-ab2-pg")).getText();
+assertEquals(test,
+"This is about page. Lorem Ipsum Dipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.");
+System.out.println("Test Succeeded!!");
+driver.quit();
+}
+}
+
